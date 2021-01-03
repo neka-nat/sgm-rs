@@ -1,6 +1,6 @@
 # Semi global matching for Rust
 
-Rust implementation for Semi global matching.
+Rust implementation of stereo matching algorithm.
 
 ## Example
 
