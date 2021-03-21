@@ -3,6 +3,12 @@ name = "sgm-rs"
 version = "0.1.0"
 authors = ["nekanat <nekanat.stock@gmail.com>"]
 edition = "2018"
+repository = "https://github.com/neka-nat/sgm-rs"
+keywords = ["sgm", "stereo"]
+license = "MIT"
+readme = "README.md"
+description = "Semi-global matching algorithm for rust"
+documentation = "http://neka-nat.github.io/sgm-rs/sgm-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
