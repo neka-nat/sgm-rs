@@ -64,16 +64,14 @@ fn calc_pixel_cost(census_l: &GrayImage, census_r: &GrayImage, d_range: usize) -
     let imgx = census_l.width() as usize;
     let imgy = census_l.height() as usize;
     let mut ans = Array3::<u8>::zeros((imgy, imgx, d_range));
-    for x in 0..imgx {
-        for y in 0..imgy {
-            let val_l = census_l.get_pixel(x as u32, y as u32);
-            for d in 0..d_range {
-                let mut val_r = &Luma([0u8]);
-                if x as i32 - d as i32 >= 0 {
-                    val_r = census_r.get_pixel((x - d) as u32, y as u32);
-                }
-                ans[(y, x, d)] = calc_hamming_distance(val_l, val_r);
+    for (x, y, val_l) in census_l.enumerate_pixels() {
+        for d in 0..d_range {
+            let du32 = d as u32;
+            let mut val_r = &Luma([0u8]);
+            if x as i32 - d as i32 >= 0 {
+                val_r = census_r.get_pixel(x - du32, y);
             }
+            ans[(y as usize, x as usize, d)] = calc_hamming_distance(val_l, val_r);
         }
     }
     return ans;
@@ -115,7 +113,8 @@ fn aggregate_cost(row: usize, col: usize, depth: usize, path: usize,
             }
         }
     }
-    agg_cost[(path, row, col, depth)] = std::cmp::min(std::cmp::min(std::cmp::min(val0, val1), val2), val3) + indiv_cost as u32 - min_prev_d;
+    let vals = vec![val0, val1, val2, val3];
+    agg_cost[(path, row, col, depth)] = *vals.iter().min().unwrap() + indiv_cost as u32 - min_prev_d;
     return agg_cost[(path, row, col, depth)];
 }
 
@@ -126,45 +125,37 @@ fn aggregate_cost_for_each_scanline(cost_array: &Array3<u8>, agg_cost: &mut Arra
     let d_range = cost_array.shape()[2];
     for row in 0..rows {
         for col in 0..cols {
-            for path in 0..8 {
-                if PATH8[path].posdir {
-                    for d in 0..d_range {
-                        sum_cost[(row, col, d)] += aggregate_cost(row, col, d, path, cost_array, agg_cost);
-                    }
-                }
+            for d in 0..d_range {
+                sum_cost[(row, col, d)] += PATH8
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(p, path)| if path.posdir { Some(aggregate_cost(row, col, d, p, cost_array, agg_cost)) } else { None })
+                    .sum::<u32>();
             }
         }
     }
     for row in (0..rows).rev() {
         for col in (0..cols).rev() {
-            for path in 0..8 {
-                if !PATH8[path].posdir {
-                    for d in 0..d_range {
-                        sum_cost[(row, col, d)] += aggregate_cost(row, col, d, path, cost_array, agg_cost);
-                    }
-                }
+            for d in 0..d_range {
+                sum_cost[(row, col, d)] += PATH8
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(p, path)| if !path.posdir { Some(aggregate_cost(row, col, d, p, cost_array, agg_cost)) } else { None })
+                    .sum::<u32>();
             }
         }
     }
 }
 
 fn calc_disparity(sum_cost: &Array3<u32>, disp_img: &mut GrayImage) {
-    let rows = sum_cost.shape()[0];
-    let cols = sum_cost.shape()[1];
     let d_range = sum_cost.shape()[2];
-    for row in 0..rows {
-        for col in 0..cols {
-            let mut min_depth: usize = 0;
-            let mut min_cost = sum_cost[(row, col, min_depth)];
-            for d in 0..d_range {
-                let tmp_cost = sum_cost[(row, col, d)];
-                if tmp_cost < min_cost {
-                    min_cost = tmp_cost;
-                    min_depth = d;
-                }
-            }
-            disp_img.put_pixel(col as u32, row as u32, image::Luma([min_depth as u8]));
-        }
+    for (x, y, pixel) in disp_img.enumerate_pixels_mut() {
+        let xusize = x as usize;
+        let yusize = y as usize;
+        let min_depth = (0..d_range)
+            .min_by_key(|&d| sum_cost[(yusize, xusize, d)])
+            .unwrap_or(0);
+        *pixel = image::Luma([min_depth as u8]);
     }
 }
 
