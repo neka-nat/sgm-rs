@@ -1,5 +1,5 @@
-extern crate sgm_rs as sr;
 extern crate image;
+extern crate sgm_rs as sr;
 use sr::compute_disp;
 
 pub fn main() {

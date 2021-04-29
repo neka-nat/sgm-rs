@@ -7,17 +7,51 @@ use ndarray::{Array3, Array4};
 struct ScanLine {
     drow: i32,
     dcol: i32,
-    posdir: bool
+    posdir: bool,
 }
 
-static PATH8: [ScanLine; 8] = [ScanLine {drow: 1, dcol: 1, posdir: true},
-                               ScanLine {drow: 1, dcol: 0, posdir: true},
-                               ScanLine {drow: 1, dcol: -1, posdir: true},
-                               ScanLine {drow: 0, dcol: -1, posdir: false},
-                               ScanLine {drow: -1, dcol: -1, posdir: false},
-                               ScanLine {drow: -1, dcol: 0, posdir: false},
-                               ScanLine {drow: -1, dcol: 1, posdir: false},
-                               ScanLine {drow: 0, dcol: 1, posdir: true}];
+static PATH8: [ScanLine; 8] = [
+    ScanLine {
+        drow: 1,
+        dcol: 1,
+        posdir: true,
+    },
+    ScanLine {
+        drow: 1,
+        dcol: 0,
+        posdir: true,
+    },
+    ScanLine {
+        drow: 1,
+        dcol: -1,
+        posdir: true,
+    },
+    ScanLine {
+        drow: 0,
+        dcol: -1,
+        posdir: false,
+    },
+    ScanLine {
+        drow: -1,
+        dcol: -1,
+        posdir: false,
+    },
+    ScanLine {
+        drow: -1,
+        dcol: 0,
+        posdir: false,
+    },
+    ScanLine {
+        drow: -1,
+        dcol: 1,
+        posdir: false,
+    },
+    ScanLine {
+        drow: 0,
+        dcol: 1,
+        posdir: true,
+    },
+];
 static P1: u32 = 3;
 static P2: u32 = 10;
 
@@ -30,7 +64,7 @@ fn calc_hamming_distance(val_l: &Luma<u8>, val_r: &Luma<u8>) -> u8 {
         d = d & (d - 1);
         dist += 1;
     }
-    return dist;
+    dist
 }
 
 fn census_transform(img: &GrayImage) -> GrayImage {
@@ -57,7 +91,7 @@ fn census_transform(img: &GrayImage) -> GrayImage {
             census.put_pixel(x, y, image::Luma([val]));
         }
     }
-    return census;
+    census
 }
 
 fn calc_pixel_cost(census_l: &GrayImage, census_r: &GrayImage, d_range: usize) -> Array3<u8> {
@@ -74,12 +108,17 @@ fn calc_pixel_cost(census_l: &GrayImage, census_r: &GrayImage, d_range: usize) -
             ans[(y as usize, x as usize, d)] = calc_hamming_distance(val_l, val_r);
         }
     }
-    return ans;
+    ans
 }
 
-fn aggregate_cost(row: usize, col: usize, depth: usize, path: usize,
-                  cost_array: &Array3<u8>,
-                  agg_cost: &mut Array4<u32>) -> u32 {
+fn aggregate_cost(
+    row: usize,
+    col: usize,
+    depth: usize,
+    path: usize,
+    cost_array: &Array3<u8>,
+    agg_cost: &mut Array4<u32>,
+) -> u32 {
     let mut val0: u32 = std::u32::MAX;
     let mut val1: u32 = std::u32::MAX;
     let mut val2: u32 = std::u32::MAX;
@@ -91,12 +130,21 @@ fn aggregate_cost(row: usize, col: usize, depth: usize, path: usize,
     let rows = cost_array.shape()[0] as i32;
     let cols = cost_array.shape()[1] as i32;
     let d_range = cost_array.shape()[2] as i32;
-    if row as i32 - drow < 0 || rows <= row as i32 - drow || col as i32 - dcol < 0 || cols <= col as i32 - dcol {
+    if row as i32 - drow < 0
+        || rows <= row as i32 - drow
+        || col as i32 - dcol < 0
+        || cols <= col as i32 - dcol
+    {
         agg_cost[(path, row, col, depth)] = indiv_cost as u32;
         return agg_cost[(path, row, col, depth)];
     }
     for dd in 0..d_range {
-        let prev = agg_cost[(path, (row as i32 - drow) as usize, (col as i32 - dcol) as usize, dd as usize)];
+        let prev = agg_cost[(
+            path,
+            (row as i32 - drow) as usize,
+            (col as i32 - dcol) as usize,
+            dd as usize,
+        )];
         if prev < min_prev_d {
             min_prev_d = prev;
         }
@@ -114,12 +162,16 @@ fn aggregate_cost(row: usize, col: usize, depth: usize, path: usize,
         }
     }
     let vals = vec![val0, val1, val2, val3];
-    agg_cost[(path, row, col, depth)] = *vals.iter().min().unwrap() + indiv_cost as u32 - min_prev_d;
-    return agg_cost[(path, row, col, depth)];
+    agg_cost[(path, row, col, depth)] =
+        *vals.iter().min().unwrap() + indiv_cost as u32 - min_prev_d;
+    agg_cost[(path, row, col, depth)]
 }
 
-
-fn aggregate_cost_for_each_scanline(cost_array: &Array3<u8>, agg_cost: &mut Array4<u32>, sum_cost: &mut Array3<u32>) {
+fn aggregate_cost_for_each_scanline(
+    cost_array: &Array3<u8>,
+    agg_cost: &mut Array4<u32>,
+    sum_cost: &mut Array3<u32>,
+) {
     let rows = cost_array.shape()[0];
     let cols = cost_array.shape()[1];
     let d_range = cost_array.shape()[2];
@@ -129,7 +181,13 @@ fn aggregate_cost_for_each_scanline(cost_array: &Array3<u8>, agg_cost: &mut Arra
                 sum_cost[(row, col, d)] += PATH8
                     .iter()
                     .enumerate()
-                    .filter_map(|(p, path)| if path.posdir { Some(aggregate_cost(row, col, d, p, cost_array, agg_cost)) } else { None })
+                    .filter_map(|(p, path)| {
+                        if path.posdir {
+                            Some(aggregate_cost(row, col, d, p, cost_array, agg_cost))
+                        } else {
+                            None
+                        }
+                    })
                     .sum::<u32>();
             }
         }
@@ -140,7 +198,13 @@ fn aggregate_cost_for_each_scanline(cost_array: &Array3<u8>, agg_cost: &mut Arra
                 sum_cost[(row, col, d)] += PATH8
                     .iter()
                     .enumerate()
-                    .filter_map(|(p, path)| if !path.posdir { Some(aggregate_cost(row, col, d, p, cost_array, agg_cost)) } else { None })
+                    .filter_map(|(p, path)| {
+                        if !path.posdir {
+                            Some(aggregate_cost(row, col, d, p, cost_array, agg_cost))
+                        } else {
+                            None
+                        }
+                    })
                     .sum::<u32>();
             }
         }
@@ -174,5 +238,5 @@ pub fn compute_disp(left: &GrayImage, right: &GrayImage, d_range: usize) -> Gray
     let mut sum_cost = Array3::<u32>::zeros((imgy, imgx, d_range));
     aggregate_cost_for_each_scanline(&cost_array, &mut agg_cost, &mut sum_cost);
     calc_disparity(&sum_cost, &mut disp_img);
-    return disp_img;
+    disp_img
 }
